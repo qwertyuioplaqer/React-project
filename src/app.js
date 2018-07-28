@@ -1,98 +1,45 @@
-import React from "react";
-import ReactDOM from "react-dom";
-import { Provider } from "react-redux";
-import AppRouter from "./routers/AppRouter";
-import configureStore from "./store/configureStore";
-import {addExpense } from "./actions/expenses";
-import { setTextFilter } from "./actions/filters";
-import getVisibleExpenses from "./selectors/expenses";
+import React from 'react';
+import ReactDOM from 'react-dom';
+import { Provider } from 'react-redux';
+import AppRouter, { history } from './routers/AppRouter';
+import configureStore from './store/configureStore';
+import { startSetExpenses } from './actions/expenses';
+import { login, logout } from './actions/auth';
+import getVisibleExpenses from './selectors/expenses';
 import 'normalize.css/normalize.css';
+import './styles/styles.scss';
 import 'react-dates/lib/css/_datepicker.css';
+import { firebase } from './firebase/firebase';
+import LoadingPage from './components/LoadingPage';
 
 const store = configureStore();
-
-store.dispatch(addExpense({description: 'water bill', createdAt: 239}));
-
-store.dispatch(addExpense({description: 'gas bill', amount: 34002, createdAt: 100}));
-
-store.dispatch(addExpense({description: 'rent', amount: 3234002}));
-
-
-const state = store.getState();
-const visibleExpenses = getVisibleExpenses(state.expenses, state.filters);
-
-
 const jsx = (
-	<Provider store={store}>
-		<AppRouter />
-	</Provider>
+  <Provider store={store}>
+    <AppRouter />
+  </Provider>
 );
+let hasRendered = false;
+const renderApp = () => {
+  if (!hasRendered) {
+    ReactDOM.render(jsx, document.getElementById('app'));
+    hasRendered = true;
+  }
+};
 
-ReactDOM.render(jsx,document.getElementById("app"));
+ReactDOM.render(<LoadingPage />, document.getElementById('app'));
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//HOC
-
-
-
-// const Info = (props) => (
-// 	<div>
-// 		<h1>Info</h1>
-// 		<p>The info is: {props.info}</p>
-// 	</div>
-// );
-
-
-// const UserAuthent = (props) => (
-// 	<div>
-// 		<h1>User Info</h1>
-// 		<p>User auth: {props.userAUTH && <span>TRUE</span>} </p>
-// 	</div>
-// );
-
-// const userAuth = (WrappedComponent) => {
-// 	return (props) => (
-// 		<div>
-// 		{props.userAUTH && <p>user name: {props.name}</p>}
-// 		<WrappedComponent {...props} />
-// 		</div>
-// 	);
-// }
-
-// const withAdminWarning = (WrappedComponent) => {
-// 	return (props) => (
-// 		<div>
-// 			{props.isAdmin && <p>This is private info.</p>}
-			
-// 			<WrappedComponent {...props} />
-// 		</div>
-// 	);
-// };
-
-
-// const UserInfo = userAuth(UserAuthent)
-// // const AdminInfo = withAdminWarning(Info);
-
-//  ReactDOM.render(<UserInfo userAUTH={false} name="Slava"  info="details" />,document.getElementById('app'));
+firebase.auth().onAuthStateChanged((user) => {
+  if (user) {
+    store.dispatch(login(user.uid));
+    store.dispatch(startSetExpenses()).then(() => {
+      renderApp();
+      if (history.location.pathname === '/') {
+        history.push('/dashboard');
+      }
+    });
+  } else {
+    store.dispatch(logout());
+    renderApp();
+    history.push('/');
+  }
+});
